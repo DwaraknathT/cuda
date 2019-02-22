@@ -1,0 +1,142 @@
+cuda cheat-sheet
+
+cudaMemcpy - copies memory from host ot device-args, destination, source, size,
+cudaMemcpyHostToDevice)
+ex = cudaMemcpy(d_A, h_A, size, cudaMemcpyHostToDevice)
+
+cudaMalloc - allocates memeory in the device, args - address of variable name, size
+note- the variable address must be cast into pointer of pointer of void
+ex - cudaMalloc((void**) &d_A, size)
+
+cudaFree() - frees object from device global memory, args - pointer to freed object
+Kernel fucntions - funcs that run on the device -uses the single program multiple data
+parallel paradigm
+
+ex- simple vector add kernel
+//the kernel
+
+__global__
+void vecAddKernel(float *A, float*B, float *c, int n)
+{
+	int i = blockDim.x*blockIdx.x + threadIdx.x
+	if (i <c ) C[i] = A[i] + B[i]
+}
+
+void vecAdd ( float* A, float* B, float* C, int n)
+{
+	//initialize and move data from host to device
+	float *d_A, *d_B, *d_C;
+	int size = n * sizeof(float);
+	cudaMalloc((void**) &d_A, size);
+	cudaMalloc((void**) &d_B, size);
+	cudaMemcpy(d_A, A, size, cudaMemcpyHosttoDevice);
+	cudaMemcpy(d_B, B, size, cudaMemcpyHostToDevice);
+
+	//launch the kernel to add elements
+	vecAddKernel <<<ceil(n/256.0), 256>>> (d_A, d_B, d_C, n);
+	//copy the answer back to host memory
+	cudaMemcpy( C, d_C, size, cudaMemcpyDeviceToHost)
+
+	//free the memory
+	cudaFree(d_A); cudaFree(d_B); cudaFree(d_C);
+}
+
+All cuda threads in a grid executes the same kernel function.
+specify the griddim and block dim using variables of size dim3, dim3 is a c struct
+which has 3 vales
+
+ex - dim3 dimGrid (32,1,1)
+     dim3 dimBlock (128, 1, 1)
+     vecAddkernel<<<dimGrid, dimBlock>>>(..)
+
+shorthand notation - instead of mentioning all dims mention only a scalar in kernel launch
+fucntion
+ex - vecAdddKernel<<< (n/256), 256>>> x dimension is initialized and y and z are automatically
+set to 1.
+
+gridDIm.x - range = (1 to 65536)
+total number of threads in a block (upper limit) - 1024
+choice of dim of thread depends on nature of data
+ex- processing an input image d_pin, output image = d_pout, kernel dimensions = 2x2
+m = total no of threads in x direction, n = total no of threads in y direction
+
+dim3 dimGrid(ceil(n/16.0), ceil(m/16.0), 1);
+dim3 dimBlock(16, 16, 1);
+colorToGreyConversion<<<dimGrid, dimBlock>>>(d_pin, d_pout);
+ q) write cuda program to convert an image from rgb to grayscale
+formula l = r*0.21 + g*0.72 + b*0.07
+
+__global__ void colorToGrayConversion(unsigned char*pout, unsigned char* pin, int width, int hieght)
+{
+	int Row = threadIdx.y + blockDim.y*blockIdx.y
+	int Col = threadIdx.x + blockDim.x*blockIdx.x
+	if (Col < width && Row < height)
+	{
+		int grayOffset 	= Row*width + Col;
+		int rgbOffset = grayOffset*Channels;
+		unsigned char r = P_in[rgbOffset];
+		unsigned char g = p_in[rgbOffset + 2];
+		unsigned char b = p_in[rgbOffset + 3];
+		pout[grayOffset] = //formula
+	}
+}
+
+q) write a kernel for image smoothening
+
+__global__ void ImageSmoothening (unsigned char *in, unsigned char *out,
+																	int w, int h)
+{
+	int Col = blockDim.x*blockIdx.x + threadIdx.x;
+	int Row = blockDim.y*blockIdx.y + threadIdx.y;
+	if ( Col<h && Row<w)
+	{
+		int pixVal = 0
+		int pixels = 0
+		//get the average of surrounding pixels
+		for (int blurRow = -BLUR_SIZE, blurRow< BLUR_SIZE+1, blurRow++)
+		{
+			for (int blurCol = -BLUE_COL, blurCol<BLUR_SIZE+1, blurCol++)
+			{
+				int curRow = Row + blurRow;
+				int curCol = Col + blurCol;
+				if (curRow > -1 && curRow < w && curCol > -1 && curCol < h)
+				{
+					pixelVal += in[curRow*w + curCol];
+					pixels++;
+				}
+			}
+		}
+	}
+}
+
+CUDA allows threads in same block to coordinate by using barrier synchronzation
+function __syncthreads() - when this is called, it will be held in the calling
+location unstil every thread reaches that location.
+This ensures that all hreads finish a phase first.
+Transparent scalability - Ability to execute the same application program on
+hardware with differnet numbers of execution resources
+
+Resource Assignment -
+Execution resources are organized into Streaming Multiprocesssors
+Query device properties - How the hell do we know how many SM are there ?
+int dev_count; //number of cuda devices
+cudaGetDeviceCount(&dev_Count); //returns the number of available CUDA devices
+Iterate through the devices and get their properties
+
+cudaDeviceProp dev_prop;   // c- structure
+for ( int i=0; i< dev_count; ++i )
+{
+	cudaGetDeviceProperties (&dev_prop, i);//decide is device has neough reosurces
+}
+properties of device:
+dev_prop.maxThreadsPerBLock; // indicates max threads per block
+dev_prop.MultiProcessorCount // number of SM
+dev_prop.cloclRate //clock speed of the device
+
+Thread scheduling and latency tolerance:
+Thread shceduling must be done in specific context of hardware
+warps - blocks in SM are divided into 32 thread units
+// probably why threads are always multiples of 32
+Latency tolerance - Filling the gaps in execution(when one warp is waiting for
+data from another warp) with execution of execution ready warps
+zero-overhead thread scheduliong - 0 wastage of execution time
