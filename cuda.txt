@@ -126,12 +126,12 @@ Iterate through the devices and get their properties
 cudaDeviceProp dev_prop;   // c- structure
 for ( int i=0; i< dev_count; ++i )
 {
-	cudaGetDeviceProperties (&dev_prop, i);//decide is device has neough reosurces
+	cudaGetDeviceProperties (&dev_prop, i);//decide is device has enough reosurces
 }
 properties of device:
 dev_prop.maxThreadsPerBLock; // indicates max threads per block
 dev_prop.MultiProcessorCount // number of SM
-dev_prop.cloclRate //clock speed of the device
+dev_prop.clockRate //clock speed of the device
 
 Thread scheduling and latency tolerance:
 Thread shceduling must be done in specific context of hardware
@@ -140,3 +140,68 @@ warps - blocks in SM are divided into 32 thread units
 Latency tolerance - Filling the gaps in execution(when one warp is waiting for
 data from another warp) with execution of execution ready warps
 zero-overhead thread scheduliong - 0 wastage of execution time
+
+--------------------------------------------------------------------------------------
+chap 3 - Memory and data locality
+
+Importance of reducing global memory calls - 
+
+While having numerous threads available for execution can theoretically tolerate long memory
+access latencies, one can easily run into a situation where traffic congestion in the global
+memory access paths prevents all but very few threads from making progress, thus rendering 
+some of the Streaming Multiprocessors (SMs) idle.
+
+for example in the image blurring kernel's inside for loop, each execution one global access 
+is performed for one flaoting-point addition. 
+compute to global memory access ratio - ratio of floating point calculations to global memory 
+access operations. 
+memory bound programs- Programs whose execution speed is limited by memory access throughput 
+
+Matrix multiplication - let M and N be 2 sqyare matrices, M and N are linearized in memory 
+Mij = i*width + j
+
+__global__ void MatrixMulKernel (float *M, float *N, float *P, int width) 
+{
+	//calculate the row index of P element and M 
+	int row = blockIdx.y*blockDim.y + threadIdx.y;
+	//calcualte col index of P and N 
+	int col = blockIdx.x*blockDim.x + threadIdx.x;
+	
+	if((row<width)&&(col<width))
+	{
+		floaat pvalue =0;
+		for (int i =0;i<width;++i)
+		{
+			pvalue+=M[row*width +k]*N[k*width+col];
+		}
+		P[row*width + col]= pvalue;
+	}
+}
+Note : in every inner production calculation two global memory access are performed for one 
+floating point multiplication and one floating point addition.
+
+CUDA memory types: CUDA device contains several types of memory, Global memory and constant 
+memory can be written and read by the host calling API fucntions. gloabal memory can be 
+written to and read by the device, constant mem supports high bandwidth short latency read
+only access by the device. Registers and shared memory are on-chip memories. Variables that 
+reside in these types of memory can be accessed at very high-speed in a highly parallel 
+manner. Registers are allocated to individual threads; each thread can only access its own 
+registers.
+shared memory isdesigned to support, efficient high bandwidth sharing of data among threads 
+in a block. 
+
+different types of variable declaration 
+__device__ __shared__ int sharedValue; shared memory 
+__device__ int globalVar; device global memory 
+__device__ __constant__ int constVar; device Constant memory  
+scalar varialbes - variables that are not matrices or vectors, all automatic scalar variables 
+declared in kernel and device functions are placed into registers 
+
+Tiling for reduced memory traffic:
+The shared memory is really fast, but also small. To fit entire data into the share memory 
+we divide the entire memory block into tiles such that each tile fits into the sahred mem. 
+imp point: kernel computations performed on these tiles must be independent of each other 
+To reduce the memory overhead we can combine memory access of multiple thread into one huge 
+memory access request, so we dont have to access slow global memory again and again.
+
+condition: the memory request of different threads must be in the same temporal proximity
