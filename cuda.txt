@@ -251,3 +251,7 @@ turning.  Once the data is in shared memory, they can be accessed either on a ro
 a column basis with much less performance variation because the shared memories are 
 implemented as intrinsically high-speed on-chip memory that does not require coalescing to 
 achieve high data access rate. 
+
+DRAM systems typically employ two more forms of parallel organization – banks and channels.
+At the highest level, a processor contains one or more channels. Each channel is a memory
+controller with a bus that connects a set of DRAM banks to the processor. 
