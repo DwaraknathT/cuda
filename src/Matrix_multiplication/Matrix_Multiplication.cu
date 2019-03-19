@@ -6,7 +6,7 @@
 #include "device_launch_parameters.h"
 using namespace std;
 
-#define blocksize = 16
+#define blocksize 16;
 
 //Multiplication Kernel 
 __global__ void MatMulKernel(int *a, int *b, int *c, int m, int n, int k)
@@ -22,6 +22,36 @@ __global__ void MatMulKernel(int *a, int *b, int *c, int m, int n, int k)
 		}
 		c[row*k + col] = pvalue;
 	}
+}
+
+//Tiled Matrix Multiplication 
+__global__ void TiledMatrixMul(int *a, int*b, int*c, int width)
+{
+	//calcualte x, y values of output 
+	int bx = blockIdx.x;
+	int by = blockIdx.y;
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+	int no = (int)(width / 2);
+	int row = by * 2 + ty;
+	int col = bx * 2 + tx;
+	float pvalue = 0;
+	//declare the variables in shared memory 
+	__shared__ int Mds[2][2];
+	__shared__ int Nds[2][2];
+
+	for (int i = 0; i < no; ++i)
+	{
+		//collaborative loading 
+		Mds[ty][tx] = a[row*width + i * 2 + tx];
+		Nds[ty][tx] = b[(i * 2 + ty)*width + col];
+		for (int k = 0; k < 2; ++k)
+		{
+			pvalue = Mds[k][k] * Nds[k][k];
+		}
+	}
+	c[row*width + col] = pvalue;
+
 }
 
 int main(int argc, char const *argv)
@@ -67,7 +97,8 @@ int main(int argc, char const *argv)
 	//Launch the kernel 
 	dim3 dimGrid((int)(m / 32), (int)(m / 32), 1);
 	dim3 dimBlock(32, 32, 1);
-	MatMulKernel << <dimGrid, dimBlock >> > (d_a, d_b, d_c, m, n, k);
+	TiledMatrixMul << <dimGrid, dimBlock >> > (d_a, d_b, d_c, m);
+	//MatMulKernel << <dimGrid, dimBlock >> > (d_a, d_b, d_c, m, n, k);
 	//copy the result back 
 	cudaMemcpy(h_c, d_c, sizeof(int)*m*k, cudaMemcpyDeviceToHost);
 	cudaThreadSynchronize();

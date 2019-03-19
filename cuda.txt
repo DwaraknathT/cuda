@@ -205,3 +205,37 @@ To reduce the memory overhead we can combine memory access of multiple thread in
 memory access request, so we dont have to access slow global memory again and again.
 
 condition: the memory request of different threads must be in the same temporal proximity
+
+Tiled Matrix multiplication 
+
+__global__ void TiledMatrixMultiplication (float *d_M, float *d_N, float *d_P, int Width)
+{
+	__shared__ float Mds[tile_width][tile_width];
+	__shared__ float Nds[tile_width][tile_width];
+	int bx = blockIdx.x; int by = blockIdx.y;
+	int tx = threadIdx.x; int ty = threadIdx.y;
+	//Identiy row and col of d_p element 
+	int row = by*tile_width + ty;
+	int col = bx*tile_width + tx;
+
+	float pvalue =0;
+	for (int ph=0;ph<width/tile_width; ++ph)
+	{
+		//collaborative loading of d_m and d_n 
+		Mds[ty][tx]=d_M[row*width+ph*width+tx0];
+		Nds[ty][tx]=d_N[(ph*tile_width+ty)*width + col];
+		__syncthreads();
+		
+		for (int k=0;k<tile_width;++k)
+		{
+			pvalue+= Mds[ty][k]*Nds[k][tx];
+		}
+		__syncthreads();
+	}
+	d_p[row*width+col] = pvalue;
+}
+
+--------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+Chapter 5 - Performance Considerations 
+
