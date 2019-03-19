@@ -239,3 +239,15 @@ __global__ void TiledMatrixMultiplication (float *d_M, float *d_N, float *d_P, i
 --------------------------------------------------------------------------------------------
 Chapter 5 - Performance Considerations 
 
+Current CUDA devices employ a technique that allows programmers to achieve high global memory 
+access of threads into favorable patterns, by taking advantage of the fact that threads in 
+a warp execute the same instruction at any given point. the most favorable access pattern is
+ achieved when all threads in a warp access consecutive global memory locations. In this 
+case, the hardware combines, or coalesces, all these accesses into a consolidated access to 
+consecutive DRAM locations.
+If an algorithm intrinsically requires a kernel code to iterate through data along the row direction,
+one can use the shared memory to enable memory coalescing. The technique, called corner 
+turning.  Once the data is in shared memory, they can be accessed either on a row basis or 
+a column basis with much less performance variation because the shared memories are 
+implemented as intrinsically high-speed on-chip memory that does not require coalescing to 
+achieve high data access rate. 
