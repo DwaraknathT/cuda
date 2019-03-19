@@ -1,4 +1,4 @@
-# cuda
+# CUDA
 CUDA notes - Programming massively parallel computers.
 
 Helpful links:
