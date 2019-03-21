@@ -255,3 +255,33 @@ achieve high data access rate.
 DRAM systems typically employ two more forms of parallel organization – banks and channels.
 At the highest level, a processor contains one or more channels. Each channel is a memory
 controller with a bus that connects a set of DRAM banks to the processor. 
+
+Warps and SIMD hardware 
+Every warp - 32 threads 
+
+Dynamic partitioning of resources 
+The execution resources in an SM include registers, shared memory, thread block slots, and
+thread slots. 
+ “performance cliff” where a slight increase in resource usage can result in significant 
+reduction in parallelism and performance achieved, reduced thread parallelism can negatively 
+affect the utilization of the memory access bandwidth of the DRAM system. The reduced memory 
+access throughput, in turn, can further reduce the thread execution throughput. This is a 
+pitfall that can result in disappointing performance of tiled algorithms and should be 
+carefully avoided.
+
+Thread Granularity 
+It is sometimes advantageous to put more work into each thread and use fewer threads. Such 
+advantage arises when some redundant work exists between threads. In the current generation 
+of devices, each SM has limited instruction processing bandwidth. Every instruction consumes
+instruction processing bandwidth, whether it is a floating-point calculation instruction, a 
+load instruction, or a branch instruction. Eliminating redundant work can ease the pressure 
+on the instruction processing bandwidth and improve the overall execution speed of the 
+kernel. 
+
+--------------------------------------------------------------------------------------------
+
+Chapter 6 - Numerical Consideratons 
+
+A floating-point number system starts with the representation of a numerical value as bit 
+patterns. In the IEEE Floating-Point Standard, a numerical value is represented in three 
+groups of bits: sign (S), exponent (E), and mantissa (M). 
